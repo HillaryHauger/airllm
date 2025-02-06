@@ -366,6 +366,8 @@ class AirLLMBaseModel(GenerationMixin):
     def move_layer_to_device(self, state_dict):
         # print(f"Moving layer {list(state_dict.keys())[0]} to device: ", self.running_device)
         layers = []
+        if self.profiling_mode:
+            t=time.time()
         for param_name, param in state_dict.items():
             if self.hf_quantizer is None:
                 layers.append(param_name)
@@ -384,7 +386,12 @@ class AirLLMBaseModel(GenerationMixin):
 
                 if layer_name not in layers:
                     layers.append(layer_name)
-
+                    
+        if self.profiling_mode:
+            elapsed_time = time.time() - t
+            self.profiler.add_profiling_time("create_layer_from_state_dict_in_move", elapsed_time)
+            t=time.time()
+            
         for param_name in layers:
             if (
                 self.hf_quantizer is None
@@ -409,7 +416,9 @@ class AirLLMBaseModel(GenerationMixin):
                     state_dict,
                     unexpected_keys=None,  # added this for hqq
                 )
-
+        if self.profiling_mode:
+            elapsed_time = time.time() - t
+            self.profiler.add_profiling_time("move_layer_to_device_in_move", elapsed_time)
         return layers
 
     # make GenerationMixin happy
